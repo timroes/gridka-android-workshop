@@ -4,14 +4,24 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
-import android.view.Menu;
-import android.view.MenuItem;
+import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.EditText;
-import android.widget.ListAdapter;
 import android.widget.ListView;
+
+import com.google.api.client.extensions.android.http.AndroidHttp;
+import com.google.api.client.extensions.android.json.AndroidJsonFactory;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+import de.timroes.training.ican.backend.ican.Ican;
+import de.timroes.training.ican.backend.ican.model.Link;
+import de.timroes.training.ican.backend.ican.model.LinkCollection;
 
 
 public class MainActivity extends Activity {
@@ -57,6 +67,17 @@ public class MainActivity extends Activity {
 			authorInput.setText(sharedPrefs.getString(PREFS_USERNAME, ""));
 		}
 
+		// Load all links from network when the activity is created
+		loadLinks();
+
+	}
+
+	private void loadLinks() {
+		// Create a new instance of the GetLinkTask which is an AsyncTask, that loads the links from
+		// App Engine in the background. See the documentation of the GetLinkTask below.
+		// The execute methods, will start the execution of this task, and call the appropriate methods in their
+		// appropriate threads.
+		new GetLinksTask().execute();
 	}
 
 	/**
@@ -97,8 +118,9 @@ public class MainActivity extends Activity {
 		String authorText = author.getText().toString();
 
 		// Create a new Link object from the entered information.
-		Link newLink = new Link(authorText, descText, urlText);
-		adapter.add(newLink);
+//		Link newLink = new Link(authorText, descText, urlText);
+//		adapter.add(newLink);
+		new CreateLinkTask(descText, urlText, authorText).execute();
 
 		// Clear the description and url field.
 		description.setText("");
@@ -120,9 +142,66 @@ public class MainActivity extends Activity {
 		if(nameField.getText().length() > 0) {
 			// Get a shared preference object to store the username in
 			SharedPreferences sharedPrefs = getSharedPreferences(PREFS_USERSETTINGS, MODE_PRIVATE);
-			// Put the username in the PREFS_USERNAME field in these shared preferences and commit the changes.
-			sharedPrefs.edit().putString(PREFS_USERNAME, nameField.getText().toString()).commit();
+			// Put the username in the PREFS_USERNAME field in these shared preferences.
+			sharedPrefs.edit().putString(PREFS_USERNAME, nameField.getText().toString()).apply();
 		}
 
+	}
+
+	private class GetLinksTask extends AsyncTask<Void, Void, List<Link>> {
+
+		@Override
+		protected List<Link> doInBackground(Void... params) {
+			Ican.Builder builder = new Ican.Builder(AndroidHttp.newCompatibleTransport(), new AndroidJsonFactory(), null);
+			builder.setApplicationName("timroes-cloud");
+			Ican ican = builder.build();
+			try {
+				LinkCollection links = ican.links().execute();
+				return links.getItems();
+			} catch (IOException e) {
+				Log.e("ICAN", "could not load links", e);
+			}
+			return new ArrayList<Link>(0);
+		}
+
+		@Override
+		protected void onPostExecute(List<Link> links) {
+			adapter.setLinks(links);
+		}
+	}
+
+	private class CreateLinkTask extends AsyncTask<Void, Void, Link> {
+
+		private String description;
+		private String url;
+		private String author;
+
+		private CreateLinkTask(String description, String url, String author) {
+			this.description = description;
+			this.url = url;
+			this.author = author;
+		}
+
+		@Override
+		protected Link doInBackground(Void... params) {
+
+			Ican.Builder builder = new Ican.Builder(AndroidHttp.newCompatibleTransport(), new AndroidJsonFactory(), null);
+			builder.setApplicationName("timroes-cloud");
+			Ican ican = builder.build();
+
+			try {
+				return ican.addLink(description, url, author).execute();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			return null;
+		}
+
+		@Override
+		protected void onPostExecute(Link link) {
+			if(link != null) {
+				adapter.add(link);
+			}
+		}
 	}
 }
