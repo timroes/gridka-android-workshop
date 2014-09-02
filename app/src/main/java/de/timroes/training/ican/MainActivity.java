@@ -198,16 +198,16 @@ public class MainActivity extends Activity {
 			// backend.
 			builder.setApplicationName("timroes-cloud");
 
-			// The following code is only required, when using the emulator do debug.
-			// Due to a bug we need to disable GZip for the content. You can leave this out, if you
-			// are only using your device.
-			builder.setGoogleClientRequestInitializer(new GoogleClientRequestInitializer() {
-				@Override
-				public void initialize(AbstractGoogleClientRequest<?> request) throws IOException {
-					request.setDisableGZipContent(true);
-				}
-			});
-			// End of the emulator only code!
+			// The following code is only required, if you want to develop with a local endpoint (not uploaded to Google),
+			// what we haven't shown in the workshop. You need to disable GZip for a local endpoint.
+			// We just have this in here, for the case you want to continue developing on the project at home and this
+			// might be one of the first issues you would run into.
+//			builder.setGoogleClientRequestInitializer(new GoogleClientRequestInitializer() {
+//				@Override
+//				public void initialize(AbstractGoogleClientRequest<?> request) throws IOException {
+//					request.setDisableGZipContent(true);
+//				}
+//			});
 
 			// Use the builder to create an instance of the app engine interface with the specified configuration.
 			Ican ican = builder.build();
