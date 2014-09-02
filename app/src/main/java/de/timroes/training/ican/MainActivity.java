@@ -14,6 +14,8 @@ import android.widget.ListView;
 
 import com.google.api.client.extensions.android.http.AndroidHttp;
 import com.google.api.client.extensions.android.json.AndroidJsonFactory;
+import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
+import com.google.api.client.googleapis.services.GoogleClientRequestInitializer;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -118,8 +120,7 @@ public class MainActivity extends Activity {
 		String authorText = author.getText().toString();
 
 		// Create a new Link object from the entered information.
-//		Link newLink = new Link(authorText, descText, urlText);
-//		adapter.add(newLink);
+		// Start a new AsyncTask therefor.
 		new CreateLinkTask(descText, urlText, authorText).execute();
 
 		// Clear the description and url field.
@@ -148,40 +149,132 @@ public class MainActivity extends Activity {
 
 	}
 
+	/**
+	 * The AsynTask that loads all links from the App Engine endpoints.
+	 * It makes use of the links method in the MyEndpoint class.
+	 *
+	 * An AsyncTask has several methods, that you can overwrite that will be executed in different threads.
+	 * Do the work you need to do in the appropriate method.
+	 *
+	 * It takes three generic parameters, that will be used to pass data through the class.
+	 *
+	 * The first parameter (in this case Void for nothing), describes the input that the task takes.
+	 * You can pass several parameters of this type to the execute method, when you start this thread.
+	 * These parameters will be passed into the doInBackground method.
+	 *
+	 * The second parameter (again Void here) is used for publishing the progress of the task. You can call
+	 * publishProgress and pass it parameters of this type, during the doInBackground method, to refresh your UI,
+	 * while the background task is running. If you publish progress you also need to implement onProgressUpdate, which
+	 * will get these updates passes as parameters and you can update your UI here.
+	 *
+	 * The third parameter is the return type of the background task. The doInBackground method, needs to return an object
+	 * of that type when it finished doing its background task. That result will be passed to the onPostExecute method,
+	 * that runs again in the UI-Thread and can change the UI to represent the result in whatever way.
+	 */
 	private class GetLinksTask extends AsyncTask<Void, Void, List<Link>> {
 
+		/**
+		 * This method is the method, that needs to do all the work, that needs to be done in the background,
+		 * i.e. the main work of this task.
+		 *
+		 * In this case it does all the (possibly slow) network communication.
+		 *
+		 * It must return the result as specified by the third generic parameter of the class.
+		 *
+		 * @param params the parameters, that has been passed to the execute method, when starting this task.
+		 * @return the result in that case the list of links.
+		 */
 		@Override
 		protected List<Link> doInBackground(Void... params) {
+			// The Ican class represents the interface that we defined in MyEndpoint in the backend module.
+			// The name will match the name we put in the @Api annotation above the class.
+			// We use the Builder inner class to generate a new instance of the interface.
+			// In a proper application, we wouldn't regenerate this every time we need to make a call, but build it one
+			// time and save it for further requests.
 			Ican.Builder builder = new Ican.Builder(AndroidHttp.newCompatibleTransport(), new AndroidJsonFactory(), null);
+
+			// We need to set the id of the application, that we want to connect to. It is the same, that we specified
+			// in the Google developer console and the one we put in the webapp/WEB-INF/appengine-web.xml file in the
+			// backend.
 			builder.setApplicationName("timroes-cloud");
+
+			// The following code is only required, when using the emulator do debug.
+			// Due to a bug we need to disable GZip for the content. You can leave this out, if you
+			// are only using your device.
+			builder.setGoogleClientRequestInitializer(new GoogleClientRequestInitializer() {
+				@Override
+				public void initialize(AbstractGoogleClientRequest<?> request) throws IOException {
+					request.setDisableGZipContent(true);
+				}
+			});
+			// End of the emulator only code!
+
+			// Use the builder to create an instance of the app engine interface with the specified configuration.
 			Ican ican = builder.build();
+
 			try {
+				// Call the links method on the interface and execute the call.
+				// The name of the method (links) is the same, that we specified in the @ApiMethod annotation in the
+				// endpoint.
 				LinkCollection links = ican.links().execute();
+				// From the result returned we can use the getItems method to get the actual list of results.
 				return links.getItems();
 			} catch (IOException e) {
-				Log.e("ICAN", "could not load links", e);
+				// Something failed during networking.. Log this as an error to the console.
+				Log.e("ICAN", "Could not load links", e);
 			}
+
+			// If something failed (we didn't reach the above return statement) return an empty ArrayList.
 			return new ArrayList<Link>(0);
 		}
 
+		/**
+		 * This method will be executed after doInBackground finished, and will get the result that doInBackground
+		 * returned as a parameter.
+		 *
+		 * This method runs again in the UI-Thread and is meant to do everything that needs to be changed at the UI
+		 * to represent the result of the task.
+		 *
+		 * In this case we just set the received links to the adapter.
+		 *
+		 * @param links the result as returned from doInBackground
+		 */
 		@Override
 		protected void onPostExecute(List<Link> links) {
 			adapter.setLinks(links);
 		}
+
+
 	}
 
+	/**
+	 * The AsynTask to create a new link in the backend.
+	 * This is basically the same as above so we skip most of the documentation here.
+	 *
+	 * As mentioned above the first generic parameter can be used to pass values to the execute method, that will be
+	 * passed to the doInBackground method. So we could have used String as a first generic type and pass the three required
+	 * Strings to the execute method.
+	 * We didn't do it, because when using constructor parameters we have a clear method with parameters, that we can
+	 * access by their names.
+	 */
 	private class CreateLinkTask extends AsyncTask<Void, Void, Link> {
 
 		private String description;
 		private String url;
 		private String author;
 
+		/**
+		 * Create a new instance and pass all required parameters to create a link.
+		 */
 		private CreateLinkTask(String description, String url, String author) {
 			this.description = description;
 			this.url = url;
 			this.author = author;
 		}
 
+		/**
+		 * Create the link in the background at the endpoint interface. Same as above.
+		 */
 		@Override
 		protected Link doInBackground(Void... params) {
 
@@ -197,6 +290,9 @@ public class MainActivity extends Activity {
 			return null;
 		}
 
+		/**
+		 * Add the link to the adapter in the UI-Thread.
+		 */
 		@Override
 		protected void onPostExecute(Link link) {
 			if(link != null) {
