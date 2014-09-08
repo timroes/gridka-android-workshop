@@ -19,3 +19,8 @@ The backend is built and deployed to App Engine with the Gradle task appengineUp
 ./gradlew backend:appengineUpdate
 ```
 The task will open up a browser and load the URL for the authentication. Depending on the system, the URL is displayed only in the terminal. Copy the code displayed in the browser to the terminal and press enter. The backend is now deployed and can be used. In your browser, the project can be called with the address **your-project-id.appspot.com**.
+
+License
+-------
+This sources are available under [CC0](http://creativecommons.org/publicdomain/zero/1.0/)/public domain. This means you are free to use them in whatever way you like.
+
