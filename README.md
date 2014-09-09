@@ -22,5 +22,5 @@ The task will open up a browser and load the URL for the authentication. Dependi
 
 License
 -------
-This sources are available under [CC0](http://creativecommons.org/publicdomain/zero/1.0/)/public domain. This means you are free to use them in whatever way you like.
+This sources are available under [CC0](http://creativecommons.org/publicdomain/zero/1.0/)/public domain. This means you are free to use them in whatever way you like, without needing to leave any copyright notice.
 
